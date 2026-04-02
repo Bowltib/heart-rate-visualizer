@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Heart Rate Analyzer</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0d0f14;
+            --surface: #151820;
+            --surface-2: #1c1f2a;
+            --border: rgba(255,255,255,0.07);
+            --text: #e8eaf0;
+            --text-muted: #6b7280;
+            --text-subtle: #9ca3af;
+            --accent: #f43f5e;
+            --accent-glow: rgba(244,63,94,0.25);
+            --low: #60a5fa;
+            --low-glow: rgba(96,165,250,0.2);
+            --normal: #34d399;
+            --normal-glow: rgba(52,211,153,0.2);
+            --high: #f43f5e;
+            --high-glow: rgba(244,63,94,0.2);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        /* Background texture */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 50% at 20% -10%, rgba(244,63,94,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 40% at 80% 100%, rgba(96,165,250,0.06) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .wrapper {
+            position: relative;
+            z-index: 1;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+        }
+
+        /* ── Header ── */
+        header {
+            margin-bottom: 48px;
+            display: flex;
+            align-items: flex-end;
+            gap: 20px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 32px;
+        }
+
+        .pulse-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--accent);
+            border-radius: 12px;
+            display: grid;
+            place-items: center;
+            box-shadow: 0 0 24px var(--accent-glow), 0 0 48px rgba(244,63,94,0.1);
+            flex-shrink: 0;
+            animation: breathe 3s ease-in-out infinite;
+        }
+
+        @keyframes breathe {
+            0%, 100% { box-shadow: 0 0 24px var(--accent-glow); }
+            50% { box-shadow: 0 0 36px rgba(244,63,94,0.45), 0 0 64px rgba(244,63,94,0.15); }
+        }
+
+        .pulse-icon svg { width: 24px; height: 24px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+        .header-text { flex: 1; }
+
+        h1 {
+            font-family: 'DM Serif Display', serif;
+            font-size: clamp(28px, 5vw, 40px);
+            font-weight: 400;
+            letter-spacing: -0.5px;
+            color: var(--text);
+            line-height: 1;
+        }
+
+        h1 em {
+            font-style: italic;
+            color: var(--accent);
+        }
+
+        .subtitle {
+            margin-top: 6px;
+            font-size: 14px;
+            color: var(--text-muted);
+            font-weight: 300;
+            letter-spacing: 0.3px;
+        }
+
+        /* ── Cards ── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 28px 32px;
+            margin-bottom: 20px;
+            transition: border-color 0.2s;
+        }
+
+        .card:hover { border-color: rgba(255,255,255,0.12); }
+
+        .card-label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 18px;
+        }
+
+        /* ── Upload ── */
+        .upload-zone {
+            border: 1.5px dashed rgba(255,255,255,0.12);
+            border-radius: var(--radius-sm);
+            padding: 36px 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            background: transparent;
+            text-align: center;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--accent);
+            background: rgba(244,63,94,0.04);
+        }
+
+        .upload-zone.drag-over {
+            border-color: var(--accent);
+            background: rgba(244,63,94,0.08);
+        }
+
+        .upload-icon {
+            width: 44px;
+            height: 44px;
+            background: var(--surface-2);
+            border-radius: 10px;
+            display: grid;
+            place-items: center;
+        }
+
+        .upload-icon svg { width: 22px; height: 22px; stroke: var(--text-subtle); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+        .upload-text { font-size: 14px; color: var(--text-subtle); }
+        .upload-text strong { color: var(--text); font-weight: 500; }
+        .upload-hint { font-size: 12px; color: var(--text-muted); }
+
+        input[type="file"] { display: none; }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 22px;
+            border-radius: 999px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.18s;
+            border: none;
+            letter-spacing: 0.1px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 0 0 0 var(--accent-glow);
+        }
+
+        .btn-primary:hover {
+            background: #fb5174;
+            box-shadow: 0 0 20px var(--accent-glow);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:active { transform: translateY(0); }
+
+        .btn-ghost {
+            background: var(--surface-2);
+            color: var(--text-subtle);
+            border: 1px solid var(--border);
+        }
+
+        .btn-ghost:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+
+        .upload-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
+
+        /* ── Stats strip ── */
+        .stats-strip {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 20px 20px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .stat-label { font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; }
+        .stat-value { font-family: 'DM Serif Display', serif; font-size: 32px; color: var(--text); line-height: 1; }
+        .stat-unit { font-size: 13px; color: var(--text-muted); font-weight: 300; }
+
+        /* ── Chart ── */
+        #chart {
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            min-height: 320px;
+        }
+
+        /* ── Zones legend ── */
+        .zones-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .zone-pill {
+            border-radius: var(--radius-sm);
+            padding: 16px 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .zone-pill.low { background: var(--low-glow); border: 1px solid rgba(96,165,250,0.25); }
+        .zone-pill.normal { background: var(--normal-glow); border: 1px solid rgba(52,211,153,0.25); }
+        .zone-pill.high { background: var(--high-glow); border: 1px solid rgba(244,63,94,0.25); }
+
+        .zone-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .zone-pill.low .zone-dot { background: var(--low); box-shadow: 0 0 8px var(--low); }
+        .zone-pill.normal .zone-dot { background: var(--normal); box-shadow: 0 0 8px var(--normal); }
+        .zone-pill.high .zone-dot { background: var(--high); box-shadow: 0 0 8px var(--high); }
+
+        .zone-info { display: flex; flex-direction: column; gap: 2px; }
+        .zone-name { font-size: 13px; font-weight: 500; color: var(--text); }
+        .zone-range { font-size: 11px; color: var(--text-muted); }
+
+        /* ── Manual Check ── */
+        .manual-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .input-group {
+            position: relative;
+            flex: 1;
+            min-width: 160px;
+        }
+
+        .input-group input {
+            width: 100%;
+            background: var(--surface-2);
+            border: 1.5px solid var(--border);
+            border-radius: 999px;
+            padding: 11px 20px 11px 50px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 15px;
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            appearance: none;
+            -moz-appearance: textfield;
+        }
+
+        .input-group input::-webkit-inner-spin-button,
+        .input-group input::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+        .input-group input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(244,63,94,0.12);
+        }
+
+        .input-group input::placeholder { color: var(--text-muted); font-size: 13px; }
+
+        .input-prefix {
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            pointer-events: none;
+        }
+
+        #manual-result {
+            margin-top: 18px;
+            padding: 16px 20px;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            line-height: 1.6;
+            display: none;
+            animation: fadeSlide 0.25s ease;
+        }
+
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #manual-result.low { background: var(--low-glow); border: 1px solid rgba(96,165,250,0.3); color: #93c5fd; }
+        #manual-result.normal { background: var(--normal-glow); border: 1px solid rgba(52,211,153,0.3); color: #6ee7b7; }
+        #manual-result.high { background: var(--high-glow); border: 1px solid rgba(244,63,94,0.3); color: #fda4af; }
+
+        /* ── Responsive ── */
+        @media (max-width: 600px) {
+            .stats-strip, .zones-grid { grid-template-columns: 1fr 1fr; }
+            .card { padding: 22px 20px; }
+            header { flex-direction: column; align-items: flex-start; }
+        }
+
+        @media (max-width: 420px) {
+            .stats-strip { grid-template-columns: 1fr; }
+            .zones-grid { grid-template-columns: 1fr; }
+        }
+
+        /* hidden section shown after upload */
+        .analysis-section { display: none; }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+
+    <!-- Header -->
+    <header>
+        <div class="pulse-icon">
+            <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <div class="header-text">
+            <h1>Heart Rate <em>Analyzer</em></h1>
+            <p class="subtitle">Upload a CSV or enter a reading to get instant zone feedback</p>
+        </div>
+    </header>
+
+    <!-- Upload card -->
+    <div class="card">
+        <div class="card-label">Upload Data</div>
+        <form method="post" enctype="multipart/form-data" id="upload-form">
+            <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+                <div class="upload-icon">
+                    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </div>
+                <div class="upload-text" id="upload-label"><strong>Drop your CSV here</strong></div>
+                <div class="upload-hint">Time, BPM columns expected</div>
+                <div class="upload-actions">
+                    <span class="btn btn-primary">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        Browse file
+                    </span>
+                    <span class="btn btn-ghost" onclick="loadSample(event)">Load sample data</span>
+                </div>
+                <input type="file" id="file-input" name="file" accept=".csv" style="display:none">
+            </div>
+            <div style="text-align:center; margin-top: 14px; display:none" id="submit-row">
+                <button type="submit" class="btn btn-primary" style="padding: 12px 32px;">
+                    Analyze CSV
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Analysis section (hidden until data loaded) -->
+    <div class="analysis-section" id="analysis-section">
+
+        <!-- Stats strip -->
+        <div class="stats-strip">
+            <div class="stat-card">
+                <span class="stat-label">Average</span>
+                <span class="stat-value" id="stat-avg">—</span>
+                <span class="stat-unit">bpm</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Peak</span>
+                <span class="stat-value" id="stat-peak">—</span>
+                <span class="stat-unit">bpm</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Duration</span>
+                <span class="stat-value" id="stat-dur">—</span>
+                <span class="stat-unit">readings</span>
+            </div>
+        </div>
+
+        <!-- Chart card -->
+        <div class="card">
+            <div class="card-label">Heart Rate Over Time</div>
+            <div id="chart"></div>
+        </div>
+
+        <!-- Zones card -->
+        <div class="card">
+            <div class="card-label">Heart Rate Zones</div>
+            <div class="zones-grid">
+                <div class="zone-pill low">
+                    <div class="zone-dot"></div>
+                    <div class="zone-info">
+                        <span class="zone-name">Bradycardia</span>
+                        <span class="zone-range">&lt; 60 bpm</span>
+                    </div>
+                </div>
+                <div class="zone-pill normal">
+                    <div class="zone-dot"></div>
+                    <div class="zone-info">
+                        <span class="zone-name">Normal</span>
+                        <span class="zone-range">60 – 100 bpm</span>
+                    </div>
+                </div>
+                <div class="zone-pill high">
+                    <div class="zone-dot"></div>
+                    <div class="zone-info">
+                        <span class="zone-name">Tachycardia</span>
+                        <span class="zone-range">&gt; 100 bpm</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manual check card -->
+    <div class="card">
+        <div class="card-label">Manual Check</div>
+        <div class="manual-row">
+            <div class="input-group">
+                <span class="input-prefix">BPM</span>
+                <input type="number" id="manual-bpm" placeholder="Enter heart rate…" min="20" max="250"
+                    onkeydown="if(event.key==='Enter') checkHeartRate()">
+            </div>
+            <button class="btn btn-primary" onclick="checkHeartRate()">Analyze</button>
+        </div>
+        <div id="manual-result"></div>
+    </div>
+
+</div>
+
+<script>
+    /* ── Drag & drop ── */
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+
+    ['dragenter','dragover'].forEach(e => dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.add('drag-over'); }));
+    ['dragleave','drop'].forEach(e => dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.remove('drag-over'); }));
+    dropZone.addEventListener('drop', ev => { const f = ev.dataTransfer.files[0]; if (f) handleFile(f); });
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files[0]) {
+            document.getElementById('upload-label').innerHTML = `<strong>${fileInput.files[0].name}</strong>`;
+            document.getElementById('submit-row').style.display = 'block';
+            // Also trigger client-side preview
+            handleFile(fileInput.files[0]);
+        }
+    });
+
+    /* ── Parse CSV ── */
+    function parseCSV(text) {
+        const lines = text.trim().split('\n');
+        const rows = lines.map(l => l.split(',').map(s => s.trim()));
+        // try to detect header
+        const hasHeader = isNaN(rows[0][1]);
+        const data = hasHeader ? rows.slice(1) : rows;
+        return data.map(r => ({ time: r[0], bpm: parseFloat(r[1]) })).filter(r => !isNaN(r.bpm));
+    }
+
+    function handleFile(file) {
+        const reader = new FileReader();
+        reader.onload = e => processData(parseCSV(e.target.result));
+        reader.readAsText(file);
+    }
+
+    function loadSample(e) {
+        e.stopPropagation();
+        const sample = `time,bpm
+00:00,62
+00:30,65
+01:00,70
+01:30,78
+02:00,88
+02:30,102
+03:00,118
+03:30,126
+04:00,134
+04:30,128
+05:00,115
+05:30,104
+06:00,96
+06:30,88
+07:00,80
+07:30,74
+08:00,70
+08:30,66
+09:00,63
+09:30,60`;
+        processData(parseCSV(sample));
+    }
+
+    /* ── Render ── */
+    function getZone(bpm) {
+        if (bpm < 60) return 'low';
+        if (bpm <= 100) return 'normal';
+        return 'high';
+    }
+
+    const zoneColors = { low: '#60a5fa', normal: '#34d399', high: '#f43f5e' };
+
+    function processData(data) {
+        const times = data.map(d => d.time);
+        const bpms = data.map(d => d.bpm);
+        const zones = bpms.map(getZone);
+        const avg = Math.round(bpms.reduce((a,b) => a+b,0) / bpms.length);
+        const peakBpm = Math.max(...bpms);
+        const peakIdx = bpms.indexOf(peakBpm);
+
+        // Stats
+        document.getElementById('stat-avg').textContent = avg;
+        document.getElementById('stat-peak').textContent = peakBpm;
+        document.getElementById('stat-dur').textContent = data.length;
+        document.getElementById('analysis-section').style.display = 'block';
+
+        // Chart
+        function zoneLabel(z) {
+            if (z === 'low') return 'Bradycardia';
+            if (z === 'normal') return 'Normal';
+            return 'Tachycardia';
+        }
+
+        const trace = {
+            x: times, y: bpms,
+            mode: 'lines+markers',
+            marker: {
+                color: zones.map(z => zoneColors[z]),
+                size: 9,
+                line: { color: 'rgba(0,0,0,0.3)', width: 1 }
+            },
+            line: { color: 'rgba(255,255,255,0.15)', width: 2, shape: 'spline' },
+            text: bpms.map((b,i) => `Time: ${times[i]}<br>BPM: ${b}<br>Zone: ${zoneLabel(zones[i])}`),
+            hoverinfo: 'text',
+            hovertemplate: '%{text}<extra></extra>',
+            name: 'BPM'
+        };
+
+        const layout = {
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { family: 'DM Sans, sans-serif', color: '#9ca3af', size: 12 },
+            margin: { t: 10, b: 50, l: 50, r: 20 },
+            xaxis: {
+                title: { text: 'Time', standoff: 12 },
+                gridcolor: 'rgba(255,255,255,0.05)',
+                linecolor: 'rgba(255,255,255,0.08)',
+                tickcolor: 'rgba(255,255,255,0.08)',
+                color: '#6b7280'
+            },
+            yaxis: {
+                title: { text: 'BPM', standoff: 12 },
+                gridcolor: 'rgba(255,255,255,0.05)',
+                linecolor: 'rgba(255,255,255,0.08)',
+                tickcolor: 'rgba(255,255,255,0.08)',
+                color: '#6b7280'
+            },
+            shapes: [{
+                type: 'line',
+                x0: times[0], x1: times[times.length-1],
+                y0: avg, y1: avg,
+                line: { color: 'rgba(251,191,36,0.5)', dash: 'dot', width: 1.5 }
+            }],
+            annotations: [{
+                x: times[peakIdx], y: peakBpm,
+                text: `Peak ${peakBpm}`,
+                showarrow: true, arrowhead: 0, arrowcolor: '#f43f5e',
+                ax: 0, ay: -36,
+                font: { color: '#f43f5e', size: 12 },
+                bgcolor: 'rgba(244,63,94,0.12)',
+                bordercolor: 'rgba(244,63,94,0.4)',
+                borderpad: 4, borderwidth: 1
+            }, {
+                x: times[Math.floor(times.length/2)], y: avg,
+                text: `avg ${avg}`,
+                showarrow: false,
+                font: { color: 'rgba(251,191,36,0.8)', size: 11 },
+                xanchor: 'center', yanchor: 'bottom', yshift: 8
+            }],
+            hoverlabel: {
+                bgcolor: '#1c1f2a',
+                bordercolor: 'rgba(255,255,255,0.1)',
+                font: { family: 'DM Sans', color: '#e8eaf0', size: 13 }
+            }
+        };
+
+        Plotly.newPlot('chart', [trace], layout, { responsive: true, displayModeBar: false });
+    }
+
+    /* ── Manual check ── */
+    /* ── Flask server-side boot: runs if chart_data was passed via Jinja2 ── */
+    {% if chart_data %}
+    (function() {
+        const serverData = {{ chart_data | tojson }};
+        const data = serverData.time.map((t, i) => ({ time: String(t), bpm: serverData.bpm[i] }));
+        // override zones from server (already computed)
+        const times = serverData.time.map(String);
+        const bpms = serverData.bpm;
+        const zones = serverData.zones;
+        const avg = serverData.avg;
+        const peakBpm = serverData.peak.bpm;
+        const peakIdx = bpms.indexOf(peakBpm);
+
+        document.getElementById('stat-avg').textContent = avg;
+        document.getElementById('stat-peak').textContent = peakBpm;
+        document.getElementById('stat-dur').textContent = bpms.length;
+        document.getElementById('analysis-section').style.display = 'block';
+
+        const zoneColors = { low: '#60a5fa', normal: '#34d399', high: '#f43f5e' };
+        function zoneLabel(z) {
+            if (z === 'low') return 'Bradycardia';
+            if (z === 'normal') return 'Normal';
+            return 'Tachycardia';
+        }
+
+        const trace = {
+            x: times, y: bpms,
+            mode: 'lines+markers',
+            marker: { color: zones.map(z => zoneColors[z]), size: 9, line: { color: 'rgba(0,0,0,0.3)', width: 1 } },
+            line: { color: 'rgba(255,255,255,0.15)', width: 2, shape: 'spline' },
+            text: bpms.map((b,i) => `Time: ${times[i]}<br>BPM: ${b}<br>Zone: ${zoneLabel(zones[i])}`),
+            hoverinfo: 'text', hovertemplate: '%{text}<extra></extra>', name: 'BPM'
+        };
+
+        const layout = {
+            paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { family: 'DM Sans, sans-serif', color: '#9ca3af', size: 12 },
+            margin: { t: 10, b: 50, l: 50, r: 20 },
+            xaxis: { title: { text: 'Time', standoff: 12 }, gridcolor: 'rgba(255,255,255,0.05)', linecolor: 'rgba(255,255,255,0.08)', tickcolor: 'rgba(255,255,255,0.08)', color: '#6b7280' },
+            yaxis: { title: { text: 'BPM', standoff: 12 }, gridcolor: 'rgba(255,255,255,0.05)', linecolor: 'rgba(255,255,255,0.08)', tickcolor: 'rgba(255,255,255,0.08)', color: '#6b7280' },
+            shapes: [{ type: 'line', x0: times[0], x1: times[times.length-1], y0: avg, y1: avg, line: { color: 'rgba(251,191,36,0.5)', dash: 'dot', width: 1.5 } }],
+            annotations: [
+                { x: times[peakIdx], y: peakBpm, text: `Peak ${peakBpm}`, showarrow: true, arrowhead: 0, arrowcolor: '#f43f5e', ax: 0, ay: -36, font: { color: '#f43f5e', size: 12 }, bgcolor: 'rgba(244,63,94,0.12)', bordercolor: 'rgba(244,63,94,0.4)', borderpad: 4, borderwidth: 1 },
+                { x: times[Math.floor(times.length/2)], y: avg, text: `avg ${avg}`, showarrow: false, font: { color: 'rgba(251,191,36,0.8)', size: 11 }, xanchor: 'center', yanchor: 'bottom', yshift: 8 }
+            ],
+            hoverlabel: { bgcolor: '#1c1f2a', bordercolor: 'rgba(255,255,255,0.1)', font: { family: 'DM Sans', color: '#e8eaf0', size: 13 } }
+        };
+
+        Plotly.newPlot('chart', [trace], layout, { responsive: true, displayModeBar: false });
+    })();
+    {% endif %}
+
+    function checkHeartRate() {
+        const bpm = parseInt(document.getElementById('manual-bpm').value);
+        const el = document.getElementById('manual-result');
+        if (isNaN(bpm) || bpm < 1) { el.style.display = 'none'; return; }
+
+        let cls, msg;
+        if (bpm < 60) {
+            cls = 'low';
+            msg = `⚡ ${bpm} BPM — Bradycardia (Low). Your heart rate is below the normal resting range. This can be normal in athletes, but if you feel dizzy or fatigued, consult a doctor.`;
+        } else if (bpm <= 100) {
+            cls = 'normal';
+            msg = `✓ ${bpm} BPM — Normal Range. You're in the healthy resting heart rate zone. Keep maintaining your lifestyle!`;
+        } else {
+            cls = 'high';
+            msg = `⚠ ${bpm} BPM — Tachycardia (High). Your heart rate is elevated. Rest, hydrate, and avoid stimulants. If this persists at rest, seek medical advice.`;
+        }
+
+        el.className = cls;
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
+</script>
+</body>
+</html>
