@@ -1,46 +1,108 @@
-# Heart Rate Analyzer 💓
+# 💓 Heart Rate Analyzer Web App
 
-A web-based interactive heart rate analyzer built with **Flask**, **Plotly.js**, **HTML/CSS/JS**, and **Pandas**.  
+An interactive Heart Rate Analyzer built using Flask, Plotly.js, HTML, CSS, and JavaScript. This application allows users to upload heart rate data, visualize it through an interactive graph, analyze key metrics such as average and peak heart rate, and receive basic health insights.
 
-This app allows users to **upload heart rate data** via CSV, visualize it in an interactive graph, check average and peak heart rates, view heart rate zones, and even **manually input heart rate values** for instant health insights.
+## 🚀 Features
 
----
+- Upload CSV files containing Time and BPM values  
+- Interactive graph using Plotly with zoom, hover, and pan functionality  
+- Automatic calculation of average heart rate  
+- Detection and display of peak heart rate with timestamp  
+- Color-coded heart rate zones:
+  - Low (<60 BPM) → Bradycardia  
+  - Normal (60–100 BPM) → Healthy  
+  - High (>100 BPM) → Tachycardia  
+- Hover tooltips showing time, BPM, and heart rate zone  
+- Manual heart rate input with instant health feedback  
+- Basic rule-based health suggestions  
 
-## Features
+## 🛠️ Tech Stack
 
-1. **CSV Upload & Visualization**  
-   - Upload CSV files containing `Time` and `BPM` columns.  
-   - Interactive Plotly graph showing heart rate over time.  
-   - Color-coded heart rate zones:  
-     - **Blue**: Bradycardia (<60 BPM)  
-     - **Green**: Normal (60–100 BPM)  
-     - **Red**: Tachycardia (>100 BPM)  
+Backend:
+- Python
+- Flask
+- Pandas
 
-2. **Hover Tooltips**  
-   - Each point on the graph displays Time, BPM, and Zone when hovered.  
+Frontend:
+- HTML
+- CSS
+- JavaScript
 
-3. **Analysis Metrics**  
-   - Displays **Average BPM**  
-   - Displays **Peak BPM** with time of occurrence  
+Visualization:
+- Plotly.js
 
-4. **Manual Heart Rate Input**  
-   - Users can enter a BPM value manually and receive instant health advice.  
+## 📁 Project Structure
 
----
+heart-rate-web/
+│
+├── app.py
+├── uploads/
+├── templates/
+│   └── index.html
+└── README.md
 
-## Tech Stack
-
-- **Backend**: Python 3.x, Flask  
-- **Data Processing**: Pandas  
-- **Visualization**: Plotly.js  
-- **Frontend**: HTML, CSS, JavaScript  
-
----
-
-## Installation
+## ⚙️ Installation
 
 1. Clone the repository:
-
-```bash
 git clone <your-repo-link>
-cd heart-rate-analyzer
+cd heart-rate-web
+
+2. (Optional) Create a virtual environment:
+python -m venv venv
+
+Activate environment:
+Windows:
+venv\Scripts\activate
+
+Mac/Linux:
+source venv/bin/activate
+
+3. Install dependencies:
+pip install flask pandas
+
+## ▶️ Running the Application
+
+Run the Flask app:
+python app.py
+
+Open your browser and go to:
+http://127.0.0.1:5000/
+
+## 📄 CSV Format
+
+The CSV file must contain the following format:
+
+Time,BPM
+0,72
+1,75
+2,78
+3,80
+
+Time can represent seconds, minutes, or index values.
+
+## 📊 How It Works
+
+1. Upload a CSV file  
+2. The backend processes the data using Pandas  
+3. Key metrics such as average and peak BPM are calculated  
+4. Data is sent to the frontend  
+5. Plotly.js renders an interactive graph  
+6. Zones are color-coded and annotated  
+7. Users can also manually input BPM for quick analysis  
+
+## 🔮 Future Enhancements
+
+- Export graph as image (PNG/PDF)  
+- Add min, max, and average summary tables  
+- Improve UI/UX with modern styling  
+- Add real-time heart rate simulation  
+- Store user data and history  
+- Integrate AI-based predictions  
+
+## ⚠️ Disclaimer
+
+This project is for educational purposes only. It does not provide medical diagnosis or treatment advice. Always consult a qualified healthcare professional for medical concerns.
+ 
+## 📌 License
+
+This project is open-source and free to use.
